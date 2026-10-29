@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>278 PHI remover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #EEF1F4;
+  --sheet: #FFFFFF;
+  --ink: #1A2233;
+  --muted: #5A6678;
+  --rule: #CBD3DD;
+  --marker: #23286B;
+  --marker-text: #E3E5FF;
+  --keep: #0E6E62;
+  --keep-tint: #DDF1EC;
+  --warn: #8A5000;
+  --warn-tint: #FBEFD9;
+  --focus: #3F59D9;
+  --sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #10141C;
+    --sheet: #171D28;
+    --ink: #DDE3EC;
+    --muted: #93A0B3;
+    --rule: #2C3544;
+    --marker: #5961C9;
+    --marker-text: #F2F3FF;
+    --keep: #6FD3C1;
+    --keep-tint: #133A35;
+    --warn: #F0B65A;
+    --warn-tint: #3A2B12;
+    --focus: #8EA2FF;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #10141C;
+  --sheet: #171D28;
+  --ink: #DDE3EC;
+  --muted: #93A0B3;
+  --rule: #2C3544;
+  --marker: #5961C9;
+  --marker-text: #F2F3FF;
+  --keep: #6FD3C1;
+  --keep-tint: #133A35;
+  --warn: #F0B65A;
+  --warn-tint: #3A2B12;
+  --focus: #8EA2FF;
+}
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.wrap { max-width: 1320px; margin: 0 auto; padding: 28px 24px 48px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; margin-bottom: 20px; }
+h1 { font-size: 1.75rem; line-height: 1.15; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+h1 .seg { font-family: var(--mono); font-weight: 600; background: var(--marker); color: var(--marker-text); padding: 0 .3em; border-radius: 3px; }
+.promise { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.options {
+  display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+  padding: 14px 16px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px;
+  margin-bottom: 16px;
+}
+.opt { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: .95rem; }
+.opt input { width: 18px; height: 18px; accent-color: var(--marker); margin: 0; }
+.opt small { color: var(--muted); font-size: .85rem; }
+.style-pick { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: .95rem; }
+.seg-ctl { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg-ctl button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .9rem; padding: 6px 12px; cursor: pointer; }
+.seg-ctl button[aria-pressed="true"] { background: var(--marker); color: var(--marker-text); }
+
+.panes { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+.pane { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; display: flex; flex-direction: column; min-height: 460px; }
+.pane-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.pane-head h2 { font-size: 1rem; margin: 0; font-weight: 600; margin-right: auto; }
+.btn {
+  font: inherit; font-size: .9rem; color: var(--ink); background: transparent;
+  border: 1px solid var(--rule); border-radius: 7px; padding: 5px 11px; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--marker); color: var(--marker-text); border-color: var(--marker); }
+.btn:disabled { opacity: .45; cursor: default; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+textarea {
+  flex: 1; width: 100%; resize: vertical; min-height: 400px; border: 0; background: transparent; color: var(--ink);
+  font-family: var(--mono); font-size: .86rem; line-height: 1.6; padding: 14px; border-radius: 0 0 10px 10px;
+}
+textarea:focus-visible { outline-offset: -2px; }
+.pane.drop { outline: 2px dashed var(--focus); outline-offset: -6px; }
+
+.tabs { display: inline-flex; gap: 4px; }
+.tabs button { font: inherit; font-size: .9rem; border: 0; background: transparent; color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--paper); font-weight: 600; }
+
+.out-body { flex: 1; overflow: auto; position: relative; }
+.ledger { font-family: var(--mono); font-size: .86rem; line-height: 1.75; padding: 10px 0; min-width: max-content; }
+.row { display: grid; grid-template-columns: 3.4em auto; padding: 0 14px 0 0; }
+.row .ln { color: var(--muted); text-align: right; padding-right: 12px; user-select: none; font-size: .8rem; }
+.row code { font-family: inherit; white-space: pre; }
+.row .sid { font-weight: 600; }
+.row .d { color: var(--muted); }
+mark.x {
+  background: var(--marker); color: var(--marker-text); border-radius: 2px;
+  padding: 1px 5px; font-size: .78rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+.keep { background: var(--keep-tint); color: var(--keep); border-radius: 2px; padding: 1px 2px; font-weight: 600; }
+.row.unk code { color: var(--warn); }
+.empty { padding: 28px 18px; color: var(--muted); max-width: 46ch; }
+.empty p { margin: 0 0 10px; }
+
+#outText { display: none; }
+.showing-text #outText { display: block; }
+.showing-text .ledger-wrap { display: none; }
+
+.status { padding: 8px 14px; border-top: 1px solid var(--rule); font-size: .85rem; color: var(--muted); }
+
+.report { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-top: 16px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+.card h2 { font-size: 1rem; margin: 0 0 8px; font-weight: 600; }
+.card p { margin: 0; color: var(--muted); font-size: .92rem; }
+table.counts { width: 100%; border-collapse: collapse; font-size: .92rem; }
+table.counts td { padding: 5px 0; border-bottom: 1px solid var(--rule); }
+table.counts td.n { text-align: right; font-family: var(--mono); width: 4em; }
+table.counts tr:last-child td { border-bottom: 0; }
+ul.checks { list-style: none; margin: 0; padding: 0; font-size: .92rem; }
+ul.checks li { padding: 6px 10px; margin-bottom: 6px; background: var(--warn-tint); color: var(--warn); border-radius: 6px; }
+ul.checks li code { font-family: var(--mono); font-weight: 600; }
+.ok { color: var(--keep); }
+
+.foot { margin-top: 18px; font-size: .85rem; color: var(--muted); max-width: 90ch; }
+.foot p { margin: 0 0 6px; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .wrap { padding: 18px 14px 36px; }
+  .panes, .report { grid-template-columns: minmax(0,1fr); }
+  .style-pick { margin-left: 0; }
+  .pane { min-height: 300px; }
+  textarea { min-height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1><span class="seg">278</span> PHI remover</h1>
+    <p class="promise">Everything runs in this page. Nothing you paste or open is sent anywhere or saved.</p>
+  </header>
+
+  <section class="options" aria-label="Options">
+    <label class="opt"><input type="checkbox" id="optRefs" checked> Keep payer reference and trace numbers <small>(REF*NT, REF*BB, HCR02, TRN)</small></label>
+    <label class="opt"><input type="checkbox" id="optYear" checked> Keep the year on service dates</label>
+    <label class="opt"><input type="checkbox" id="optStrict"> Also remove provider names, IDs and addresses</label>
+    <div class="style-pick">
+      <span id="styleLbl">Replace with</span>
+      <div class="seg-ctl" role="group" aria-labelledby="styleLbl">
+        <button type="button" data-style="tokens" aria-pressed="true">Labels</button>
+        <button type="button" data-style="safe" aria-pressed="false">Parser-safe values</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="panes">
+    <section class="pane" id="inPane" aria-labelledby="inTitle">
+      <div class="pane-head">
+        <h2 id="inTitle">Original 278</h2>
+        <button type="button" class="btn" id="openBtn">Open file</button>
+        <button type="button" class="btn" id="sampleBtn">Load made-up example</button>
+        <button type="button" class="btn" id="clearBtn">Clear</button>
+        <input type="file" id="fileIn" accept=".txt,.edi,.x12,.278,.dat,.out,.in,text/plain" hidden>
+      </div>
+      <textarea id="input" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Paste a 278 message here" placeholder="Paste a 278 from Mirth (Encoded tab) or drop a file here."></textarea>
+    </section>
+
+    <section class="pane" id="outPane" aria-labelledby="outTitle">
+      <div class="pane-head">
+        <h2 id="outTitle">Cleaned</h2>
+        <div class="tabs" role="tablist" aria-label="Output view">
+          <button type="button" role="tab" id="tabLedger" aria-selected="true">Segments</button>
+          <button type="button" role="tab" id="tabText" aria-selected="false">Plain text</button>
+        </div>
+        <button type="button" class="btn primary" id="copyBtn" disabled>Copy cleaned 278</button>
+      </div>
+      <div class="out-body" id="outBody">
+        <div class="ledger-wrap" id="ledgerWrap">
+          <div class="empty" id="emptyState">
+            <p>Paste a 278 on the left, or open a file. The cleaned version shows up here.</p>
+            <p>Removed values show as dark bars. Decision fields you usually need (HCR01, HCR03, the HC procedure code, HSD) are tinted so you can find them quickly.</p>
+          </div>
+          <div class="ledger" id="ledger" hidden></div>
+        </div>
+        <textarea id="outText" readonly spellcheck="false" aria-label="Cleaned 278 as plain text"></textarea>
+      </div>
+      <div class="status" id="status" aria-live="polite">Waiting for a message.</div>
+    </section>
+  </div>
+
+  <div class="report">
+    <section class="card" aria-labelledby="removedTitle">
+      <h2 id="removedTitle">What was removed</h2>
+      <div id="counts"><p>Nothing yet.</p></div>
+    </section>
+    <section class="card" aria-labelledby="checkTitle">
+      <h2 id="checkTitle">Check these by hand</h2>
+      <div id="checks"><p>Nothing yet.</p></div>
+    </section>
+  </div>
+
+  <div class="foot">
+    <p>Always removed: patient and subscriber names, member IDs and other patient REF numbers, dates of birth, patient addresses and contact details, ambulance pickup and drop-off addresses, service and event dates, and free text in MSG and NTE.</p>
+    <p>Left as they are: HCR decisions and reason codes, procedure and diagnosis codes, quantities, UM and AAA codes, envelope and transaction control numbers. Payer reference numbers are kept by default because you need them to trace a case; untick the first option for a fully de-identified copy.</p>
+    <p>This works on segment rules, so read the cleaned output before you share it.</p>
+  </div>
+</div>
+
+<script>
+// CORE-START
+const PATIENT_ENTITIES = new Set(['IL','QC','PW','45','GD','QD','S3']);
+const PATIENT_REF = new Set(['SY','EJ','1W','HJ','IG','NQ','Q4','3H','6P','1L','A6','ABB','F6','IF','MRN']);
+const PAYER_REF = new Set(['NT','BB','G1','9F','D9','9A','4N','NQ0']);
+const KNOWN = new Set(['ISA','IEA','GS','GE','ST','SE','BHT','HL','TRN','AAA','UM','HCR','REF','DTP','HI','HSD','CRC','CL1','CR1','CR2','CR5','CR6','PWK','MSG','NM1','N3','N4','PER','PRV','DMG','INS','SV1','SV2','SV3','TOO','NTE']);
+const NO_SCAN = new Set(['ISA','IEA','GS','GE','ST','SE','BHT','HL','HCR','SV1','SV2','SV3','HSD','UM','AAA','TOO','CL1','PRV','CRC','INS']);
+
+const CATEGORY_NAMES = {
+  name: 'Patient and subscriber names',
+  id: 'Member IDs and other patient numbers',
+  dob: 'Dates of birth',
+  date: 'Service and event dates',
+  address: 'Patient addresses',
+  contact: 'Patient contact details',
+  text: 'Free-text notes (MSG, NTE)',
+  reference: 'Payer reference and trace numbers',
+  provider: 'Provider names, IDs and addresses'
+};
+
+function detectDelims(raw) {
+  const t = raw.replace(/^\uFEFF/, '');
+  const i = t.indexOf('ISA');
+  if (i >= 0 && t.length > i + 4) {
+    const el = t[i + 3];
+    if (el && !/[A-Za-z0-9\s]/.test(el)) {
+      const parts = t.slice(i).split(el);
+      if (parts.length > 16 && parts[16].length >= 2) {
+        const comp = parts[16][0];
+        const seg = parts[16][1];
+        const rep = parts[11] && parts[11].length === 1 && !/[A-Za-z0-9 ]/.test(parts[11]) ? parts[11] : null;
+        return { el, comp, seg, rep, fromISA: true };
+      }
+    }
+  }
+  const seg = t.includes('~') ? '~' : '\n';
+  return { el: '*', comp: ':', seg, rep: '^', fromISA: false };
+}
+
+function scrub(raw, opts) {
+  const d = detectDelims(raw);
+  const terminatorIsNewline = d.seg === '\n' || d.seg === '\r';
+  const pieces = terminatorIsNewline ? raw.split('\n') : raw.split(d.seg);
+  const joiner = terminatorIsNewline ? '\n' : d.seg;
+
+  const tokenMap = new Map();
+  const counters = {};
+  const tokenFor = (label, value) => {
+    const key = label + '\u0001' + value;
+    if (!tokenMap.has(key)) { counters[label] = (counters[label] || 0) + 1; tokenMap.set(key, counters[label]); }
+    return tokenMap.get(key);
+  };
+  const delimChars = [d.el, d.comp, d.seg, d.rep].filter(Boolean);
+  const tokenSafe = !delimChars.some(c => '[]-'.includes(c));
+  const useTokens = opts.style === 'tokens' && tokenSafe;
+  const pad = (n, len) => { const s = String(n); return s.length >= len ? s : '0'.repeat(len - s.length) + s; };
+
+  function replaceDate(value, rule) {
+    const keepYear = rule.kind === 'date' && opts.keepYear;
+    const label = rule.kind === 'dob' ? 'DOB' : 'DATE';
+    let hit = false;
+    const out = value.replace(/(?:19|20)\d{6}(?:\d{2,6})?/g, m => {
+      hit = true;
+      const year = m.slice(0, 4);
+      if (useTokens) {
+        const n = tokenFor(label, m);
+        return keepYear ? `[${year}-${label}-${n}]` : `[${label}-${n}]`;
+      }
+      return (keepYear ? year : '1900') + '0101' + m.slice(8).replace(/\d/g, '0');
+    });
+    if (hit) return out;
+    const n = tokenFor(label, value);
+    return useTokens ? `[${label}-${n}]` : '19000101';
+  }
+
+  function replace(value, rule) {
+    if (rule.kind === 'date' || rule.kind === 'dob') return replaceDate(value, rule);
+    const n = tokenFor(rule.label, value);
+    if (useTokens) return `[${rule.label}-${n}]`;
+    if (rule.kind === 'name') return rule.label.replace(/[^A-Z]/g, '') + n;
+    if (rule.kind === 'id' || rule.kind === 'zip' || rule.kind === 'phone') return pad(n, value.length);
+    return rule.label.replace(/[^A-Z]/g, '') + n;
+  }
+
+  const R = (cat, label, kind) => ({ cat, label, kind });
+  const st = { hl: '', entity: null };
+  const contextOf = () => {
+    if (st.entity) return PATIENT_ENTITIES.has(st.entity) ? 'patient' : 'provider';
+    if (st.hl === '22' || st.hl === '23') return 'patient';
+    if (st.hl === 'EV' || st.hl === 'SS') return 'event';
+    if (st.hl === '19' || st.hl === '20' || st.hl === '21') return 'provider';
+    return 'header';
+  };
+
+  const segments = [];
+  const events = [];
+  const checks = [];
+  let segNo = 0;
+  let st01 = null;
+
+  const outPieces = pieces.map(piece => {
+    const m = piece.match(/^([\r\n\t ]*)([\s\S]*?)([\r\n]*)$/);
+    const pre = m[1], body = m[2], post = m[3];
+    if (!body) return piece;
+    segNo++;
+    const els = body.split(d.el);
+    const id = els[0].trim().toUpperCase();
+
+    if (id === 'HL') { st.hl = (els[3] || '').trim().toUpperCase(); st.entity = null; }
+    if (id === 'NM1') { st.entity = (els[1] || '').trim().toUpperCase(); }
+    if (id === 'ST') st01 = (els[1] || '').trim();
+    const ctx = contextOf();
+
+    const actions = [];
+    const has = i => els[i] !== undefined && els[i] !== '';
+    const add = (i, rule, comp) => { if (comp === undefined ? has(i) : true) actions.push({ i, rule, comp }); };
+    const keepMarks = new Set();
+    const keptRefs = new Set();
+
+    switch (id) {
+      case 'NM1':
+        if (ctx === 'patient') {
+          add(3, R('name', 'LAST', 'name')); add(4, R('name', 'FIRST', 'name')); add(5, R('name', 'MIDDLE', 'name'));
+          add(6, R('name', 'PREFIX', 'name')); add(7, R('name', 'SUFFIX', 'name')); add(9, R('id', 'MEMBER-ID', 'id'));
+        } else if (opts.strict) {
+          add(3, R('provider', 'PROVIDER', 'name')); add(4, R('provider', 'PROVIDER-FIRST', 'name'));
+          add(5, R('provider', 'PROVIDER-MIDDLE', 'name')); add(9, R('provider', 'PROVIDER-ID', 'id'));
+        }
+        break;
+      case 'N3':
+        if (ctx === 'patient') { add(1, R('address', 'STREET', 'text')); add(2, R('address', 'STREET-LINE-TWO', 'text')); }
+        else if (opts.strict) { add(1, R('provider', 'PROVIDER-STREET', 'text')); add(2, R('provider', 'PROVIDER-STREET-LINE-TWO', 'text')); }
+        break;
+      case 'N4':
+        if (ctx === 'patient') { add(1, R('address', 'CITY', 'text')); add(3, R('address', 'ZIP', 'zip')); add(7, R('address', 'SUBDIVISION', 'text')); }
+        else if (opts.strict) { add(1, R('provider', 'PROVIDER-CITY', 'text')); add(3, R('provider', 'PROVIDER-ZIP', 'zip')); }
+        break;
+      case 'PER': {
+        const cat = ctx === 'patient' ? 'contact' : (opts.strict ? 'provider' : null);
+        if (cat) {
+          add(2, R(cat, cat === 'contact' ? 'CONTACT' : 'PROVIDER-CONTACT', 'name'));
+          [4, 6, 8].forEach(i => { if (has(i)) add(i, R(cat, /@/.test(els[i]) ? 'EMAIL' : 'PHONE', /@/.test(els[i]) ? 'text' : 'phone')); });
+        }
+        break;
+      }
+      case 'DMG': add(2, R('dob', 'DOB', 'dob')); break;
+      case 'DTP': add(3, R('date', 'DATE', 'date')); break;
+      case 'REF': {
+        const q = (els[1] || '').trim().toUpperCase();
+        const ql = q.replace(/[^A-Z0-9]/g, '') || 'X';
+        if (ctx === 'patient' || PATIENT_REF.has(q)) { add(2, R('id', 'ID-' + ql, 'id')); add(3, R('text', 'NOTE', 'text')); }
+        else if (PAYER_REF.has(q)) { if (opts.keepRefs) { if (has(2)) { keptRefs.add(2); keepMarks.add(2); } } else add(2, R('reference', 'REF-' + ql, 'id')); }
+        else if (ctx === 'provider') { if (opts.strict) add(2, R('provider', 'PROVIDER-ID', 'id')); }
+        else { if (opts.keepRefs) { if (has(2)) keptRefs.add(2); } else add(2, R('reference', 'REF-' + ql, 'id')); }
+        break;
+      }
+      case 'TRN':
+        if (opts.keepRefs) { keptRefs.add(2); keptRefs.add(4); }
+        else { add(2, R('reference', 'TRACE', 'id')); add(4, R('reference', 'TRACE-ALT', 'id')); }
+        break;
+      case 'HCR':
+        keepMarks.add(1); keepMarks.add(3);
+        if (opts.keepRefs) keptRefs.add(2); else add(2, R('reference', 'AUTH', 'id'));
+        break;
+      case 'PWK':
+        if (opts.keepRefs) keptRefs.add(6); else add(6, R('reference', 'ATTACHMENT', 'id'));
+        break;
+      case 'MSG': add(1, R('text', 'NOTE', 'text')); break;
+      case 'NTE': add(2, R('text', 'NOTE', 'text')); break;
+      case 'HI':
+        for (let i = 1; i < els.length; i++) {
+          if (!els[i]) continue;
+          const c = els[i].split(d.comp);
+          if (c[2] && /^(D8|RD8|DT)$/i.test(c[2].trim()) && c[3]) add(i, R('date', 'DATE', 'date'), 3);
+        }
+        break;
+      case 'CR6':
+        for (let i = 2; i < els.length; i++) if (/^(19|20)\d{6}/.test(els[i] || '')) add(i, R('date', 'DATE', 'date'));
+        break;
+      case 'SV1': case 'SV3': keepMarks.add(1); break;
+      case 'SV2': keepMarks.add(2); break;
+      case 'HSD': for (let i = 1; i < els.length; i++) keepMarks.add(i); break;
+    }
+
+    const redacted = new Map();
+    for (const a of actions) {
+      if (a.comp === undefined) {
+        els[a.i] = replace(els[a.i], a.rule);
+      } else {
+        const c = els[a.i].split(d.comp);
+        c[a.comp] = replace(c[a.comp], a.rule);
+        els[a.i] = c.join(d.comp);
+      }
+      redacted.set(a.i, a.rule.cat);
+      events.push({ segNo, id, pos: id + String(a.i).padStart(2, '0'), cat: a.rule.cat });
+    }
+
+    if (!KNOWN.has(id)) {
+      checks.push({ segNo, id, msg: 'Unrecognised segment. Nothing in it was removed.' });
+    } else if (!NO_SCAN.has(id)) {
+      for (let i = 1; i < els.length; i++) {
+        if (redacted.has(i) || keptRefs.has(i) || !els[i]) continue;
+        const pos = id + String(i).padStart(2, '0');
+        const vals = els[i].split(d.comp);
+        if (vals.some(v => /^(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{4})?$/.test(v.trim()))) {
+          checks.push({ segNo, id, pos, msg: 'looks like a date and was left in.' });
+        } else if (ctx !== 'provider' && vals.some(v => /^\d{3}-?\d{2}-?\d{4}$/.test(v.trim()))) {
+          checks.push({ segNo, id, pos, msg: 'looks like an SSN or patient number and was left in.' });
+        } else if (vals.some(v => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(v))) {
+          checks.push({ segNo, id, pos, msg: 'looks like an email address and was left in.' });
+        }
+      }
+    }
+
+    segments.push({ segNo, id, els: els.slice(), redacted, keepMarks, known: KNOWN.has(id) });
+    return pre + els.join(d.el) + post;
+  });
+
+  if (st01 && st01 !== '278') checks.unshift({ segNo: null, id: 'ST', msg: `This looks like an X12 ${st01}, not a 278. The rules are tuned for 278s.` });
+  if (segNo === 1 && raw.length > 200) checks.unshift({ segNo: null, id: '', msg: 'Couldn’t find segment boundaries. The message may be missing its ISA header or ~ terminators.' });
+  if (opts.style === 'tokens' && !tokenSafe) checks.unshift({ segNo: null, id: '', msg: 'This message uses [ ] or - as a delimiter, so parser-safe values were used instead of labels.' });
+
+  return { text: outPieces.join(joiner), segments, events, checks, delims: d, segCount: segNo };
+}
+// CORE-END
+
+const $ = s => document.querySelector(s);
+const input = $('#input'), ledger = $('#ledger'), emptyState = $('#emptyState'), outText = $('#outText');
+const statusEl = $('#status'), copyBtn = $('#copyBtn'), outBody = $('#outBody');
+const opts = { keepRefs: true, keepYear: true, strict: false, style: 'tokens' };
+let last = null;
+
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const showDelim = c => c === '\n' ? 'newline' : c === '\r' ? 'carriage return' : c;
+
+function render() {
+  const raw = input.value;
+  if (!raw.trim()) {
+    last = null;
+    ledger.hidden = true; emptyState.hidden = false; outText.value = '';
+    copyBtn.disabled = true;
+    statusEl.textContent = 'Waiting for a message.';
+    $('#counts').innerHTML = '<p>Nothing yet.</p>';
+    $('#checks').innerHTML = '<p>Nothing yet.</p>';
+    return;
+  }
+  const r = scrub(raw, opts);
+  last = r;
+  outText.value = r.text;
+  copyBtn.disabled = false;
+
+  const sepHtml = `<span class="d">${esc(r.delims.el)}</span>`;
+  ledger.innerHTML = r.segments.map(s => {
+    const parts = s.els.map((v, i) => {
+      if (i === 0) return `<span class="sid">${esc(v)}</span>`;
+      if (s.redacted.has(i)) return `<mark class="x" title="Removed: ${esc(CATEGORY_NAMES[s.redacted.get(i)])}">${esc(v)}</mark>`;
+      if (s.keepMarks.has(i) && v) return `<span class="keep">${esc(v)}</span>`;
+      return esc(v);
+    });
+    return `<div class="row${s.known ? '' : ' unk'}"><span class="ln">${s.segNo}</span><code>${parts.join(sepHtml)}<span class="d">${esc(r.delims.seg === '\n' ? '' : r.delims.seg)}</span></code></div>`;
+  }).join('');
+  ledger.hidden = false; emptyState.hidden = true;
+
+  const segsTouched = new Set(r.events.map(e => e.segNo)).size;
+  const n = r.events.length;
+  statusEl.textContent = `Removed ${n} value${n === 1 ? '' : 's'} from ${segsTouched} of ${r.segCount} segments. Delimiters: element ${showDelim(r.delims.el)}, component ${showDelim(r.delims.comp)}, segment ${showDelim(r.delims.seg)}${r.delims.fromISA ? ' (read from ISA)' : ' (assumed, no ISA found)'}.`;
+
+  const byCat = {};
+  r.events.forEach(e => { byCat[e.cat] = (byCat[e.cat] || 0) + 1; });
+  const rows = Object.keys(CATEGORY_NAMES).filter(k => byCat[k]).map(k => `<tr><td>${CATEGORY_NAMES[k]}</td><td class="n">${byCat[k]}</td></tr>`);
+  $('#counts').innerHTML = rows.length ? `<table class="counts"><tbody>${rows.join('')}</tbody></table>` : '<p>Nothing matched the removal rules. Check that this is a 278.</p>';
+
+  $('#checks').innerHTML = r.checks.length
+    ? `<ul class="checks">${r.checks.map(c => `<li>${c.segNo ? `Segment ${c.segNo}, <code>${esc(c.pos || c.id)}</code>: ` : ''}${esc(c.msg)}</li>`).join('')}</ul>`
+    : '<p class="ok">No leftover dates, SSN-like numbers or email addresses found outside the decision fields.</p>';
+}
+
+let timer;
+input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(render, 120); });
+$('#optRefs').addEventListener('change', e => { opts.keepRefs = e.target.checked; render(); });
+$('#optYear').addEventListener('change', e => { opts.keepYear = e.target.checked; render(); });
+$('#optStrict').addEventListener('change', e => { opts.strict = e.target.checked; render(); });
+document.querySelectorAll('.seg-ctl button').forEach(b => b.addEventListener('click', () => {
+  opts.style = b.dataset.style;
+  document.querySelectorAll('.seg-ctl button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  render();
+}));
+
+const tabLedger = $('#tabLedger'), tabText = $('#tabText');
+function setTab(text) {
+  tabLedger.setAttribute('aria-selected', String(!text));
+  tabText.setAttribute('aria-selected', String(text));
+  outBody.classList.toggle('showing-text', text);
+}
+tabLedger.addEventListener('click', () => setTab(false));
+tabText.addEventListener('click', () => setTab(true));
+
+copyBtn.addEventListener('click', async () => {
+  if (!last) return;
+  let ok = false;
+  try { await navigator.clipboard.writeText(last.text); ok = true; } catch (e) {
+    try {
+      const wasText = outBody.classList.contains('showing-text');
+      setTab(true); outText.focus(); outText.select();
+      ok = document.execCommand('copy');
+      if (!wasText) setTab(false);
+    } catch (e2) { ok = false; }
+  }
+  copyBtn.textContent = ok ? 'Copied' : 'Select the plain text and copy it';
+  if (!ok) setTab(true);
+  setTimeout(() => { copyBtn.textContent = 'Copy cleaned 278'; }, 1800);
+});
+
+function loadFile(file) {
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => { input.value = String(fr.result); render(); };
+  fr.onerror = () => { statusEl.textContent = 'Couldn’t read that file. Try opening it as plain text.'; };
+  fr.readAsText(file);
+}
+$('#openBtn').addEventListener('click', () => $('#fileIn').click());
+$('#fileIn').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+const inPane = $('#inPane');
+['dragenter', 'dragover'].forEach(t => inPane.addEventListener(t, e => { e.preventDefault(); inPane.classList.add('drop'); }));
+['dragleave', 'drop'].forEach(t => inPane.addEventListener(t, e => { e.preventDefault(); inPane.classList.remove('drop'); }));
+inPane.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+
+$('#clearBtn').addEventListener('click', () => { input.value = ''; render(); input.focus(); });
+
+const SAMPLE = [
+  'ISA*00*          *00*          *ZZ*SAMPLESENDER   *ZZ*SAMPLERECV     *261029*1030*^*00501*000000101*0*T*:~',
+  'GS*HI*SAMPLESENDER*SAMPLERECV*20261029*1030*101*X*005010X217~',
+  'ST*278*0001*005010X217~',
+  'BHT*0007*11*REF0001*20261029*1030~',
+  'HL*1**20*1~',
+  'NM1*X3*2*EXAMPLE HEALTH PLAN*****PI*99999~',
+  'PER*IC*UM DEPARTMENT*TE*5555550199~',
+  'HL*2*1*21*1~',
+  'NM1*1P*2*SAMPLE ORTHOPEDIC GROUP*****XX*1234567893~',
+  'HL*3*2*22*1~',
+  'NM1*IL*1*TESTPATIENT*ALEX*Q***MI*ZZ9990001234~',
+  'REF*SY*999001234~',
+  'N3*100 EXAMPLE STREET*APT 2~',
+  'N4*SAMPLETOWN*IL*60000~',
+  'DMG*D8*19800101*U~',
+  'HL*4*3*EV*1~',
+  'TRN*2*TRACE0001*9SAMPLE~',
+  'UM*HS*I*2~',
+  'DTP*472*RD8*20261101-20261130~',
+  'HI*ABK:M5416~',
+  'HL*5*4*SS*0~',
+  'TRN*2*LINE0001*9SAMPLE~',
+  'UM*HS*I*2~',
+  'HCR*A3**0F~',
+  'REF*NT*CASE00011111~',
+  'DTP*472*D8*20261105~',
+  'SV1*HC:72148**UN*1~',
+  'HSD*VS*1~',
+  'MSG*CALL ALEX TESTPATIENT AT 5555550100 TO RESCHEDULE~',
+  'HL*6*4*SS*0~',
+  'UM*HS*I*2~',
+  'HCR*A4~',
+  'DTP*472*D8*20261105~',
+  'SV1*HC:72149**UN*1~',
+  'HSD*VS*1~',
+  'SE*34*0001~',
+  'GE*1*101~',
+  'IEA*1*000000101~'
+].join('\n');
+$('#sampleBtn').addEventListener('click', () => { input.value = SAMPLE; render(); });
+
+render();
+</script>
+</body>
+</html>
